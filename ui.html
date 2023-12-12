@@ -1,0 +1,82 @@
+<div class="controls-wrap">
+  <button id="lookup">Get typography</button>
+  <button id="closeout">Close</button>
+</div>
+<pre id="font-output"></pre>
+<style>
+  html,body { margin:0; }
+  body {
+    margin-bottom:100px;
+  }
+  .controls-wrap {
+    position:sticky;
+    top:0;
+    background:#eaeaea;
+    display: flex;
+    justify-content: space-between;
+    margin:0;
+    padding:1em 20px;
+  }
+  pre {
+    margin:0;
+    padding:10px 20px;
+  }
+</style>
+<script>
+
+document.getElementById('lookup').onclick = () => {
+  parent.postMessage({ pluginMessage: { type: 'get-fonts' } }, '*')
+}
+document.getElementById('closeout').onclick = () => {
+  parent.postMessage({ pluginMessage: { type: 'closeout' } }, '*')
+}
+
+// interpret the following message from code.ts and output it in #font-output
+// figma.ui.postMessage({ type: 'font-list', fonts: uniqueFonts, fontStyles: uniqueFontStyles });
+onmessage = (event) => {
+  const message = event.data.pluginMessage;
+  if (message.type === 'font-list') {
+    let outputMessage = '';
+    const fontList = document.getElementById('font-output');
+    message.fonts.forEach((font,fontKey) => {
+      const fontSafe = font.replace(/ /g, '-');
+      let tempMessage = `
+@mixin ${fontSafe} {
+  font-family: '${font}';
+}`;
+      outputMessage += tempMessage;
+    });
+
+    message.allFontsArray.forEach((fontStyle,fontStyleKey) => {
+      const nameSafe = fontStyle.name.replace(/ /g, '-');
+      const fontSafe = fontStyle.family.replace(/ /g, '-');
+      let tempMessage = `
+@mixin type_${nameSafe} {
+  @include ${fontSafe};
+  font-size: ${fontStyle.size}px;
+  line-height: ${fontStyle.lineHeight.value / fontStyle.size};
+  letter-spacing: ${fontStyle.letterSpacing.value/10}em;
+}`;
+      outputMessage += tempMessage;
+    });
+    outputMessage += `<br><br><br><button id="copybutton">Copy to clipboard</button>`;
+
+    document.getElementById('font-output').innerHTML = outputMessage;
+
+    document.getElementById('copybutton').onclick = () => {
+      var copyText = document.getElementById("font-output");
+      copyText.focus();
+      document.getElementById('copybutton').innerHTML = '';
+      window.getSelection().selectAllChildren(copyText);
+      document.execCommand("copy");
+
+      window.getSelection().removeAllRanges();
+      document.getElementById('copybutton').innerHTML = 'Copied!';
+    }
+  } else {
+    console.log('unknown message type');
+    console.log(message);
+  }
+};
+
+</script>
